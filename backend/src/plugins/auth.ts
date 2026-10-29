@@ -10,6 +10,7 @@ declare module 'fastify' {
   }
   interface FastifyInstance {
     authenticate: (request: FastifyRequest) => Promise<void>;
+    authenticateOptional: (request: FastifyRequest) => Promise<void>;
   }
 }
 
@@ -33,8 +34,30 @@ export const authenticatePlugin: FastifyPluginAsync = fp(async (app) => {
 });
 
 /**
- * Plugin de autorización por rol (se usa junto a authenticate).
+ * Plugin de autenticación OPCIONAL: verifica el Bearer token si viene.
+ * Si es válido → setea request.userId / userRole.
+ * Si no viene o es inválido → NO lanza (seguir como invitado).
  */
+export const authenticateOptional: FastifyPluginAsync = fp(async (app) => {
+  app.decorate('authenticateOptional', authOptionalHook);
+});
+
+/**
+ * Hook directo de autenticación opcional (sin depender del decorator).
+ * Puede pasarse directamente en preHandler: [authOptionalHook].
+ */
+export async function authOptionalHook(this: FastifyInstance, request: FastifyRequest) {
+  try {
+    const decoded = await request.jwtVerify<TokenPayload>();
+    if (decoded.type === 'access') {
+      request.userId = decoded.userId;
+      request.userRole = decoded.role;
+    }
+  } catch {
+    // Sin token o inválido → invitado
+  }
+}
+
 export function requireRole(...roles: string[]) {
   return async function (request: { userRole?: string }) {
     if (!request.userRole || !roles.includes(request.userRole)) {

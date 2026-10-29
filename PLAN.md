@@ -58,13 +58,13 @@ main ─── dev ─── feat/[funcionalidad]
 - [x] **Criterio de éxito**: El cliente ve la carta completa, puede personalizar su pedido.
 
 ### Fase 3: Carrito y pedidos (Días 11-15)
-- [ ] 3.1 Carrito de compras (session/localStorage para invitados, DB para registrados)
-- [ ] 3.2 Flujo de pedido: carrito → resumen → confirmar
-- [ ] 3.3 Selección de método de pago (online vs contra entrega)
-- [ ] 3.4 Integración con Stripe (pago online)
-- [ ] 3.5 Pago contra entrega (solo clientes registrados)
-- [ ] 3.6 Historial de pedidos para el cliente
-- [ ] **Criterio de éxito**: Pedido completo pasando por carrito, pago y confirmación.
+- [x] 3.1 Carrito de compras (session/localStorage para invitados, DB para registrados)
+- [x] 3.2 Flujo de pedido: carrito → resumen → confirmar
+- [x] 3.3 Selección de método de pago (online vs contra entrega)
+- [x] 3.4 Integración con Stripe (pago online) — modo demo sin key
+- [x] 3.5 Pago contra entrega (solo clientes registrados)
+- [x] 3.6 Historial de pedidos para el cliente
+- [x] **Criterio de éxito**: Pedido completo pasando por carrito, pago y confirmación.
 
 ### Fase 4: Stock en tiempo real (Días 16-18)
 - [ ] 4.1 Sistema de stock con WebSockets

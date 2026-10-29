@@ -138,4 +138,6 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
+export type OrderItem = typeof orderItems.$inferSelect;
 export type Interaction = typeof interactions.$inferSelect;
