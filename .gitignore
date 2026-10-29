@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.example
+
+# Build outputs
+.next/
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+memory/logs/
+
+# Database
+*.db
+*.sqlite
+
+# Docker
+docker-data/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temp
+tmp/
+temp/
