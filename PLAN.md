@@ -50,12 +50,12 @@ main ─── dev ─── feat/[funcionalidad]
 - [x] **Criterio de éxito**: Un cliente puede registrarse, iniciar sesión, o pedir como invitado.
 
 ### Fase 2: Catálogo y carta digital (Días 7-10)
-- [ ] 2.1 Modelo de datos: categorías, productos, variantes (adicionales, cremas, bebidas)
-- [ ] 2.2 API CRUD de productos (admin)
-- [ ] 2.3 Frontend: carta visual tipo fast food con categorías
-- [ ] 2.4 Personalizaciones: observaciones, adicionales, cremas por producto
-- [ ] 2.5 Búsqueda y filtros en la carta
-- [ ] **Criterio de éxito**: El cliente ve la carta completa, puede personalizar su pedido.
+- [x] 2.1 Modelo de datos: categorías, productos, variantes (adicionales, cremas, bebidas)
+- [x] 2.2 API CRUD de productos (admin)
+- [x] 2.3 Frontend: carta visual tipo fast food con categorías
+- [x] 2.4 Personalizaciones: observaciones, adicionales, cremas por producto
+- [x] 2.5 Búsqueda y filtros en la carta
+- [x] **Criterio de éxito**: El cliente ve la carta completa, puede personalizar su pedido.
 
 ### Fase 3: Carrito y pedidos (Días 11-15)
 - [ ] 3.1 Carrito de compras (session/localStorage para invitados, DB para registrados)
