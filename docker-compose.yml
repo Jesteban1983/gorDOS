@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: gordos_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gordos
+      POSTGRES_PASSWORD: gordos_dev_password
+      POSTGRES_DB: gordos
+    ports:
+      - '5432:5432'
+    volumes:
+      - gordos_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gordos']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: gordos_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - gordos_redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─── Backend API ──────────────────────────────────────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: gordos_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://gordos:gordos_dev_password@postgres:5432/gordos
+      REDIS_URL: redis://redis:6379
+      PORT: 4000
+      HOST: 0.0.0.0
+    ports:
+      - '4000:4000'
+    volumes:
+      - ../backend/src:/app/src:ro
+
+  # ─── Frontend (Next.js) ───────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: gordos_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    ports:
+      - '3000:3000'
+
+volumes:
+  gordos_pgdata:
+  gordos_redisdata:

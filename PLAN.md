@@ -42,12 +42,12 @@ main ─── dev ─── feat/[funcionalidad]
 - [ ] **Criterio de éxito**: `docker compose up` levanta frontend, backend y DB. Los agentes tienen su estructura de archivos.
 
 ### Fase 1: Autenticación y registro (Días 4-6)
-- [ ] 1.1 Sistema de registro de clientes (email + contraseña + datos básicos)
-- [ ] 1.2 Pedido como invitado (sin registro)
-- [ ] 1.3 JWT + refresh tokens
-- [ ] 1.4 Perfil de cliente: historial, datos guardados
+- [x] 1.1 Sistema de registro de clientes (email + contraseña + datos básicos)
+- [x] 1.2 Pedido como invitado (sin registro)
+- [x] 1.3 JWT + refresh tokens
+- [x] 1.4 Perfil de cliente: historial, datos guardados
 - [ ] 1.5 Recuperación de contraseña
-- [ ] **Criterio de éxito**: Un cliente puede registrarse, iniciar sesión, o pedir como invitado.
+- [x] **Criterio de éxito**: Un cliente puede registrarse, iniciar sesión, o pedir como invitado.
 
 ### Fase 2: Catálogo y carta digital (Días 7-10)
 - [ ] 2.1 Modelo de datos: categorías, productos, variantes (adicionales, cremas, bebidas)
