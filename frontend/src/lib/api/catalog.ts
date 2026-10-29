@@ -18,6 +18,7 @@ export interface CatalogProduct {
   price: string;
   imageUrl: string | null;
   isAvailable: boolean;
+  stock?: number;
   preparationTime: number | null;
   addons: AddonOption[];
 }

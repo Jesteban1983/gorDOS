@@ -1,0 +1,92 @@
+import { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import {
+  listStock,
+  listLowStock,
+  updateStock,
+  bulkUpdateStock,
+  LOW_STOCK_THRESHOLD,
+} from './stock.service';
+import { authenticatePlugin, requireRole } from '../../plugins/auth';
+import { ValidationError } from '../../shared/errors';
+
+const idParamSchema = {
+  type: 'object',
+  properties: { id: { type: 'integer' } },
+  required: ['id'],
+} as const;
+
+const updateStockSchema = z.object({
+  stock: z.number().int().min(0).max(999999),
+});
+
+const bulkStockSchema = z.object({
+  updates: z
+    .array(z.object({ id: z.number().int().positive(), stock: z.number().int().min(0).max(999999) }))
+    .min(1)
+    .max(100),
+});
+
+export const stockRoutes: FastifyPluginAsync = async (app) => {
+  await app.register(authenticatePlugin);
+
+  // ═══ ADMIN ════════════════════════════════════════════
+
+  // ─── GET /api/stock ───────────────────────────────────
+  app.get('/', {
+    preHandler: [app.authenticate, requireRole('admin')],
+    schema: {
+      tags: ['stock-admin'],
+      summary: 'Listar stock de todos los productos (admin)',
+    },
+  }, async () => {
+    return listStock();
+  });
+
+  // ─── GET /api/stock/low ───────────────────────────────
+  app.get('/low', {
+    preHandler: [app.authenticate, requireRole('admin')],
+    schema: {
+      tags: ['stock-admin'],
+      summary: `Productos con stock bajo (< ${LOW_STOCK_THRESHOLD})`,
+    },
+  }, async () => {
+    return listLowStock();
+  });
+
+  // ─── PATCH /api/stock/:id ─────────────────────────────
+  app.patch('/:id', {
+    preHandler: [app.authenticate, requireRole('admin')],
+    schema: {
+      tags: ['stock-admin'],
+      summary: 'Actualizar stock de un producto',
+      params: idParamSchema,
+      body: zodToJsonSchema(updateStockSchema),
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const productId = Number(id);
+    const parsed = updateStockSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError('Stock inválido');
+    }
+    return updateStock(productId, parsed.data.stock);
+  });
+
+  // ─── POST /api/stock/bulk ─────────────────────────────
+  app.post('/bulk', {
+    preHandler: [app.authenticate, requireRole('admin')],
+    schema: {
+      tags: ['stock-admin'],
+      summary: 'Actualizar stock de varios productos (inventario)',
+      body: zodToJsonSchema(bulkStockSchema),
+    },
+  }, async (request) => {
+    const parsed = bulkStockSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError('Datos de inventario inválidos');
+    }
+    return bulkUpdateStock(parsed.data.updates);
+  });
+};

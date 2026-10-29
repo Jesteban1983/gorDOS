@@ -13,6 +13,8 @@ import { guestRoutes } from './modules/guest/guest.routes';
 import { userRoutes } from './modules/users/user.routes';
 import { catalogRoutes } from './modules/products/catalog.routes';
 import { orderRoutes } from './modules/orders/orders.routes';
+import { stockRoutes } from './modules/stock/stock.routes';
+import { registerStockHub } from './modules/stock/stock.hub';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -72,6 +74,8 @@ app.register(guestRoutes, { prefix: '/api/guest' });
 app.register(userRoutes, { prefix: '/api/users' });
 app.register(catalogRoutes, { prefix: '/api/catalog' });
 app.register(orderRoutes, { prefix: '/api/orders' });
+app.register(stockRoutes, { prefix: '/api/stock' });
+registerStockHub(app); // GET /ws/stock
 
 // ─── Health ─────────────────────────────────────────────
 app.get('/api/health', async () => ({ status: 'ok', service: 'gorDOS', timestamp: new Date().toISOString() }));

@@ -6,6 +6,7 @@ import { catalogApi, type CatalogCategory, type CatalogProduct } from '@/lib/api
 import { CartProvider, useCart } from '@/lib/store/cart-context';
 import { ProductModal } from '@/components/menu/product-modal';
 import { CartDrawer } from '@/components/menu/cart-drawer';
+import { useStockWebSocket, type StockUpdatePayload } from '@/lib/store/use-stock-websocket';
 
 function MenuContent() {
   const [card, setCard] = useState<CatalogCategory[]>([]);
@@ -16,6 +17,24 @@ function MenuContent() {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const { totalItems, totalPrice } = useCart();
+
+  // Fase 4: stock en tiempo real — actualiza la carta al vuelo
+  const { connected: wsConnected } = useStockWebSocket((updates: StockUpdatePayload[]) => {
+    setCard((prev) => {
+      const byId = new Map(updates.map((u) => [u.id, u]));
+      let changed = false;
+      const next = prev.map((cat) => ({
+        ...cat,
+        products: cat.products.map((p) => {
+          const u = byId.get(p.id);
+          if (!u || (u.isAvailable === p.isAvailable && u.stock === p.stock)) return p;
+          changed = true;
+          return { ...p, isAvailable: u.isAvailable, stock: u.stock } as CatalogProduct & { stock: number };
+        }),
+      }));
+      return changed ? next : prev;
+    });
+  });
 
   useEffect(() => {
     catalogApi
@@ -173,13 +192,30 @@ function MenuContent() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {cat.products.map((p) => (
+                {cat.products.map((p) => {
+                  const outOfStock = !p.isAvailable;
+                  const lowStock = outOfStock ? false : (p as CatalogProduct & { stock?: number }).stock !== undefined
+                    ? (p as CatalogProduct & { stock: number }).stock <= 10
+                    : false;
+                  return (
                   <button
                     key={p.id}
-                    onClick={() => setSelectedProduct(p)}
-                    className="card group flex items-center gap-4 text-left transition-shadow hover:shadow-md"
-                    disabled={!p.isAvailable}
+                    onClick={() => !outOfStock && setSelectedProduct(p)}
+                    className={`card group relative flex items-center gap-4 text-left transition-shadow ${
+                      outOfStock ? 'cursor-not-allowed opacity-60' : 'hover:shadow-md'
+                    }`}
+                    disabled={outOfStock}
                   >
+                    {outOfStock && (
+                      <span className="absolute right-3 top-3 rounded-full bg-gray-700 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                        Agotado
+                      </span>
+                    )}
+                    {lowStock && !outOfStock && (
+                      <span className="absolute right-3 top-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                        ¡Últimas!
+                      </span>
+                    )}
                     {/* Imagen placeholder */}
                     <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand/10 to-accent/20 text-3xl">
                       {p.imageUrl ? (
@@ -205,10 +241,22 @@ function MenuContent() {
                       </p>
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </section>
           ))}
+
+        {!loading && !error && (
+          <p className="flex items-center justify-center gap-2 pb-4 text-center text-xs text-gray-400">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                wsConnected ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            />
+            {wsConnected ? 'Stock en vivo · actualización automática' : 'Reconectando stock en vivo...'}
+          </p>
+        )}
       </section>
 
       {/* ─── Modales ─────────────────────────────────── */}

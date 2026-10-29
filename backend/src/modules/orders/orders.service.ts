@@ -3,6 +3,8 @@ import { getDb } from '../../config/db';
 import { orders, orderItems, products, productAddons, users } from '../../config/schema';
 import { env } from '../../config/env';
 import { NotFoundError, BadRequestError, UnauthorizedError } from '../../shared/errors';
+import { decrementStock } from '../stock/stock.service';
+import { broadcastOrderEvent } from '../stock/stock.hub';
 import type { Order, OrderItem } from '../../config/schema';
 
 // ─── Tipos ──────────────────────────────────────────────
@@ -144,6 +146,14 @@ export async function createOrder(input: CreateOrderInput) {
       .set({ lastOrderAt: sql`now()` })
       .where(eq(users.id, input.userId));
   }
+
+  // ── Descontar stock en tiempo real (Fase 4) ──────────
+  // Si un producto se agota aquí, el broadcast lo quita de la carta en vivo.
+  for (const item of itemsToInsert) {
+    await decrementStock(item.productId, item.quantity);
+  }
+
+  broadcastOrderEvent({ id: order.id, orderNumber: order.orderNumber, status: order.status });
 
   // ── Stripe (si aplica) ────────────────────────────────
   let stripePayload: { clientSecret?: string; demoMode?: boolean } = {};

@@ -67,11 +67,11 @@ main ─── dev ─── feat/[funcionalidad]
 - [x] **Criterio de éxito**: Pedido completo pasando por carrito, pago y confirmación.
 
 ### Fase 4: Stock en tiempo real (Días 16-18)
-- [ ] 4.1 Sistema de stock con WebSockets
-- [ ] 4.2 Al reducirse stock disponible, actualización en vivo en la carta
-- [ ] 4.3 Alertas de stock bajo (admin)
-- [ ] 4.4 Gestión de inventario desde panel admin
-- [ ] **Criterio de éxito**: Si un producto se agota, desaparece de la carta en tiempo real.
+- [x] 4.1 Sistema de stock con WebSockets
+- [x] 4.2 Al reducirse stock disponible, actualización en vivo en la carta
+- [x] 4.3 Alertas de stock bajo (admin)
+- [x] 4.4 Gestión de inventario desde panel admin
+- [x] **Criterio de éxito**: Si un producto se agota, desaparece de la carta en tiempo real.
 
 ### Fase 5: Cocina y caja — Comandas (Días 19-21)
 - [ ] 5.1 Panel de cocina: pedidos entrantes en tiempo real
