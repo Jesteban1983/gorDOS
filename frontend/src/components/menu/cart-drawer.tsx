@@ -1,7 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/store/cart-context';
+import { agentsApi, type ProductRecommendation } from '@/lib/api/agents';
+import { catalogApi } from '@/lib/api/catalog';
 
 interface CartDrawerProps {
   open: boolean;
@@ -9,7 +12,32 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
-  const { items, totalItems, totalPrice, updateQuantity, removeItem } = useCart();
+  const { items, totalItems, totalPrice, updateQuantity, removeItem, addItem } = useCart();
+  const [recommendations, setRecommendations] = useState<ProductRecommendation[]>([]);
+
+  // A3: Carga de recomendaciones contextuales de venta cruzada
+  useEffect(() => {
+    if (!open || items.length === 0) {
+      setRecommendations([]);
+      return;
+    }
+    const productIds = items.map((i) => i.product.id);
+    agentsApi
+      .getRecommendations(productIds, 3)
+      .then((res) => setRecommendations(res.recommendations))
+      .catch(() => {});
+  }, [open, items]);
+
+  const handleAddRecommendation = async (rec: ProductRecommendation) => {
+    try {
+      const fullProd = await catalogApi.getProduct(rec.slug);
+      if (fullProd) {
+        addItem(fullProd, [], '', 1);
+      }
+    } catch {
+      // Ignorar si no se puede añadir directamente
+    }
+  };
 
   if (!open) return null;
 
@@ -96,6 +124,39 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* ─── A3: Recomendaciones Contextuales (Fase 8) ──────── */}
+          {items.length > 0 && recommendations.length > 0 && (
+            <div className="mt-6 rounded-2xl border border-amber-200/70 bg-amber-50/60 p-4">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <span>🤖</span>
+                <span>Acompaña tu pedido (gorDOS IA)</span>
+              </div>
+              <p className="text-[11px] text-amber-700/90 mt-0.5">
+                Los clientes suelen agregar estas opciones:
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {recommendations.map((rec) => (
+                  <div
+                    key={rec.productId}
+                    className="flex items-center justify-between rounded-xl border border-amber-200/80 bg-white p-2.5 shadow-sm"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <p className="font-bold text-xs text-ink truncate">{rec.productName}</p>
+                      <p className="text-[10px] text-gray-400">{rec.categoryName}</p>
+                    </div>
+                    <button
+                      onClick={() => handleAddRecommendation(rec)}
+                      className="shrink-0 rounded-lg bg-orange-600 px-2.5 py-1 text-[11px] font-bold text-white shadow hover:bg-orange-500 active:scale-95 transition-transform"
+                    >
+                      + S/ {rec.price}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 

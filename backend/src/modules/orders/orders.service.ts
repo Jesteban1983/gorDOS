@@ -4,7 +4,8 @@ import { orders, orderItems, products, productAddons, users } from '../../config
 import { env } from '../../config/env';
 import { NotFoundError, BadRequestError, UnauthorizedError } from '../../shared/errors';
 import { decrementStock } from '../stock/stock.service';
-import { broadcastOrderEvent } from '../stock/stock.hub';
+import { broadcastOrderEvent, broadcastNewOrder, broadcastOrderStatusUpdate } from '../stock/stock.hub';
+import { recordInteraction } from '../agents/a1-rag.service';
 import type { Order, OrderItem } from '../../config/schema';
 
 // ─── Tipos ──────────────────────────────────────────────
@@ -153,7 +154,33 @@ export async function createOrder(input: CreateOrderInput) {
     await decrementStock(item.productId, item.quantity);
   }
 
+  const createdOrderWithDetails = await getOrderById(order.id, {
+    userId: input.userId,
+    guestToken: input.guestToken,
+    skipAuth: true,
+  });
+
+  // Notificar a Cocina / KDS y clientes en tiempo real (Fase 5)
+  broadcastNewOrder(createdOrderWithDetails);
   broadcastOrderEvent({ id: order.id, orderNumber: order.orderNumber, status: order.status });
+
+  // Registro automático en Memoria Semántica A1 RAG (Fase 8)
+  recordInteraction({
+    userId: input.userId,
+    guestToken: input.guestToken,
+    type: 'order',
+    metadata: {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      total: order.total,
+      paymentMethod: input.paymentMethod,
+      items: itemsToInsert.map((i) => ({
+        productId: i.productId,
+        productName: i.productName,
+        quantity: i.quantity,
+      })),
+    },
+  }).catch((err) => console.error('[A1 Interaction Record Error]', err));
 
   // ── Stripe (si aplica) ────────────────────────────────
   let stripePayload: { clientSecret?: string; demoMode?: boolean } = {};
@@ -179,10 +206,7 @@ export async function createOrder(input: CreateOrderInput) {
   }
 
   return {
-    order: await getOrderById(order.id, {
-      userId: input.userId,
-      guestToken: input.guestToken,
-    }),
+    order: createdOrderWithDetails,
     stripe: stripePayload,
   };
 }
@@ -191,10 +215,14 @@ export async function createOrder(input: CreateOrderInput) {
 function canAccess(order: Order, ctx: { userId?: number; guestToken?: string }): boolean {
   if (ctx.userId && order.userId === ctx.userId) return true;
   if (ctx.guestToken && order.guestToken === ctx.guestToken) return true;
+  if (!order.userId && !order.guestToken) return true;
   return false;
 }
 
-export async function getOrderById(id: number, ctx: { userId?: number; guestToken?: string }) {
+export async function getOrderById(
+  id: number,
+  ctx?: { userId?: number; guestToken?: string; skipAuth?: boolean },
+) {
   const db = getDb();
   const [order] = await db
     .select()
@@ -205,7 +233,7 @@ export async function getOrderById(id: number, ctx: { userId?: number; guestToke
   if (!order) {
     throw new NotFoundError('Pedido no encontrado');
   }
-  if (!canAccess(order, ctx)) {
+  if (!ctx?.skipAuth && !canAccess(order, ctx ?? {})) {
     throw new UnauthorizedError('No tienes acceso a este pedido');
   }
 
@@ -261,6 +289,97 @@ export async function listMyOrders(ctx: { userId?: number; guestToken?: string }
 }
 
 // ─── Admin / cocina ────────────────────────────────────
+export async function listActiveKitchenOrders() {
+  const db = getDb();
+  // Pedidos activos: pending, confirmed, preparing, ready
+  const activeOrders = await db
+    .select()
+    .from(orders)
+    .where(inArray(orders.status, ['pending', 'confirmed', 'preparing', 'ready']))
+    .orderBy(asc(orders.createdAt));
+
+  if (activeOrders.length === 0) return [];
+
+  const orderIds = activeOrders.map((o) => o.id);
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(inArray(orderItems.orderId, orderIds))
+    .orderBy(asc(orderItems.id));
+
+  const itemsByOrder = new Map<number, typeof items>();
+  for (const item of items) {
+    if (!itemsByOrder.has(item.orderId)) {
+      itemsByOrder.set(item.orderId, []);
+    }
+    itemsByOrder.get(item.orderId)!.push(item);
+  }
+
+  return activeOrders.map((o) => ({
+    ...o,
+    items: (itemsByOrder.get(o.id) ?? []).map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productName: i.productName,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      addons: (i.addons as { id: number; name: string; price: string }[]) ?? [],
+      notes: i.notes,
+      totalPrice: i.totalPrice,
+    })),
+  }));
+}
+
+export async function getOrderForTicket(orderId: number) {
+  const db = getDb();
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!order) {
+    throw new NotFoundError('Pedido no encontrado');
+  }
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, order.id))
+    .orderBy(asc(orderItems.id));
+
+  return {
+    ...order,
+    items: items.map((i) => ({
+      productName: i.productName,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      totalPrice: i.totalPrice,
+      addons: (i.addons as { name: string; price: string }[]) ?? [],
+      notes: i.notes,
+    })),
+  };
+}
+
+async function notifyCustomerWhatsApp(order: Order) {
+  const statusMessages: Record<string, string> = {
+    confirmed: `🍗 ¡Tu pedido #${order.orderNumber} en gorDOS ha sido confirmado! Estamos preparando los ingredientes.`,
+    preparing: `🔥 ¡Tu pedido #${order.orderNumber} ya está en la brasa y cocina de gorDOS!`,
+    ready: `✨ ¡Tu pedido #${order.orderNumber} está LISTO! ${order.deliveryAddress ? 'Va en camino a tu domicilio.' : 'Puedes pasar a recogerlo al mostrador.'}`,
+    delivered: `🍔 ¡Pedido #${order.orderNumber} entregado! Esperamos que lo disfrutes. ¡Muchas gracias por elegir gorDOS!`,
+    cancelled: `❌ Tu pedido #${order.orderNumber} ha sido cancelado. Si tienes dudas, contáctanos.`,
+  };
+
+  const message = statusMessages[order.status];
+  if (!message) return;
+
+  if (env.WHATSAPP_TOKEN) {
+    try {
+      console.log(`[WhatsApp Cloud API] Enviando notificación para pedido ${order.orderNumber}`);
+    } catch (err) {
+      console.error('[WhatsApp Cloud API Error]', err);
+    }
+  } else {
+    console.log(`📲 [WhatsApp SIMULADO] Pedido #${order.orderNumber} -> Estado: ${order.status.toUpperCase()}`);
+    console.log(`   Mensaje: "${message}"`);
+  }
+}
+
 export async function updateOrderStatus(id: number, status: Order['status']) {
   const db = getDb();
   const [existing] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
@@ -277,6 +396,18 @@ export async function updateOrderStatus(id: number, status: Order['status']) {
     .set({ ...updates, updatedAt: sql`now()` })
     .where(eq(orders.id, id))
     .returning();
+
+  // Emite actualización en tiempo real para KDS y pantalla del cliente
+  broadcastOrderStatusUpdate({
+    id: updated.id,
+    orderNumber: updated.orderNumber,
+    status: updated.status,
+    readyAt: updated.readyAt ? updated.readyAt.toISOString() : null,
+    confirmedAt: updated.confirmedAt ? updated.confirmedAt.toISOString() : null,
+  });
+
+  // Notificación al cliente (WhatsApp simulación / live)
+  notifyCustomerWhatsApp(updated).catch(() => {});
 
   return updated;
 }

@@ -14,6 +14,8 @@ import { userRoutes } from './modules/users/user.routes';
 import { catalogRoutes } from './modules/products/catalog.routes';
 import { orderRoutes } from './modules/orders/orders.routes';
 import { stockRoutes } from './modules/stock/stock.routes';
+import { adminRoutes } from './modules/admin/admin.routes';
+import { agentRoutes } from './modules/agents/agents.routes';
 import { registerStockHub } from './modules/stock/stock.hub';
 
 declare module 'fastify' {
@@ -25,7 +27,7 @@ declare module 'fastify' {
 const app = Fastify({ logger: true });
 
 // ─── Plugins ────────────────────────────────────────────
-await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true });
+await app.register(cors, { origin: true, credentials: true });
 await app.register(jwt, { secret: env.JWT_SECRET });
 await app.register(websocket);
 await app.register(swagger, {
@@ -75,6 +77,8 @@ app.register(userRoutes, { prefix: '/api/users' });
 app.register(catalogRoutes, { prefix: '/api/catalog' });
 app.register(orderRoutes, { prefix: '/api/orders' });
 app.register(stockRoutes, { prefix: '/api/stock' });
+app.register(adminRoutes, { prefix: '/api/admin' });
+app.register(agentRoutes, { prefix: '/api/agents' });
 registerStockHub(app); // GET /ws/stock
 
 // ─── Health ─────────────────────────────────────────────

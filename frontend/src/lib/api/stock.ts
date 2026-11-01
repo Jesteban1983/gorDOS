@@ -40,4 +40,11 @@ export const stockApi = {
       body: { updates },
       auth: true,
     }),
+
+  decrement: (id: number, quantity: number = 1, reason?: string) =>
+    api<{ id: number; stock: number; isAvailable: boolean }>(`/api/stock/${id}/decrement`, {
+      method: 'POST',
+      body: { quantity, reason },
+      auth: true,
+    }),
 };

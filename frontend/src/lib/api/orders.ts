@@ -104,6 +104,35 @@ export const ordersApi = {
       auth: Boolean(localStorage.getItem('gordos_token')),
     });
   },
+
+  // ── Cocina y Comandas (Fase 5) ────────────────────────
+  kitchenActive: () =>
+    api<OrderView[]>('/api/orders/kitchen/active', {
+      auth: Boolean(localStorage.getItem('gordos_token')),
+    }),
+
+  updateStatus: (id: number, status: OrderStatus) =>
+    api<OrderView>(`/api/orders/${id}/status`, {
+      method: 'PATCH',
+      body: { status },
+      auth: Boolean(localStorage.getItem('gordos_token')),
+    }),
+
+  getTicket: (id: number, type: 'kitchen' | 'cashier' = 'kitchen') =>
+    api<{ orderId: number; orderNumber: string; type: string; text: string; escposBase64: string }>(
+      `/api/orders/${id}/ticket?type=${type}`,
+      { auth: Boolean(localStorage.getItem('gordos_token')) },
+    ),
+
+  sendToPrinter: (id: number, type: 'kitchen' | 'cashier' = 'kitchen') =>
+    api<{ success: boolean; orderNumber: string; type: string; message: string }>(
+      `/api/orders/${id}/print`,
+      {
+        method: 'POST',
+        body: { type },
+        auth: Boolean(localStorage.getItem('gordos_token')),
+      },
+    ),
 };
 
 // ─── Etiquetas de estado (UI) ───────────────────────────

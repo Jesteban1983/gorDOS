@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ordersApi, getGuestToken, ORDER_STATUS_LABELS, PAYMENT_LABELS, type OrderView } from '@/lib/api/orders';
 import { AuthProvider, useAuth } from '@/lib/store/auth-context';
+import { useOrdersWebSocket } from '@/lib/store/use-orders-websocket';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800',
@@ -36,6 +37,13 @@ function OrderDetailContent() {
       .catch((e) => setError(e instanceof Error ? e.message : 'No pudimos cargar el pedido'))
       .finally(() => setLoading(false));
   }, [params.id, user]);
+
+  // Actualización en tiempo real desde Cocina (Fase 5)
+  useOrdersWebSocket({
+    onStatusUpdate: (update) => {
+      setOrder((prev) => (prev && prev.id === update.id ? { ...prev, status: update.status } : prev));
+    },
+  });
 
   if (loading) {
     return (

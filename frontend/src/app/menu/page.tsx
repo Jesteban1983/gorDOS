@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { catalogApi, type CatalogCategory, type CatalogProduct } from '@/lib/api/catalog';
+import { agentsApi, type PredictedItem } from '@/lib/api/agents';
+import { getGuestToken } from '@/lib/api/orders';
 import { CartProvider, useCart } from '@/lib/store/cart-context';
 import { ProductModal } from '@/components/menu/product-modal';
 import { CartDrawer } from '@/components/menu/cart-drawer';
@@ -16,6 +18,7 @@ function MenuContent() {
   const [activeCat, setActiveCat] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [prediction, setPrediction] = useState<PredictedItem | null>(null);
   const { totalItems, totalPrice } = useCart();
 
   // Fase 4: stock en tiempo real — actualiza la carta al vuelo
@@ -42,6 +45,17 @@ function MenuContent() {
       .then(setCard)
       .catch(() => setError('No pudimos cargar la carta. Intenta de nuevo.'))
       .finally(() => setLoading(false));
+
+    // A0: Orquestación inteligente de sesión (Fase 8)
+    const guestToken = getGuestToken() ?? undefined;
+    agentsApi
+      .getSession(guestToken)
+      .then((session) => {
+        if (session.prediction) {
+          setPrediction(session.prediction);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const filtered = useMemo(() => {
@@ -178,6 +192,45 @@ function MenuContent() {
             <p className="mt-1 text-sm text-gray-500">
               Prueba con otro nombre o mira toda la carta.
             </p>
+          </div>
+        )}
+
+        {/* ─── Banner IA Predictor A2 (Fase 8) ─────────── */}
+        {!loading && !error && prediction && (
+          <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 p-5 text-white shadow-xl transition-all hover:shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur">
+                  ✨
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
+                      🤖 gorDOS IA · {prediction.probabilityPercentage}% afinidad
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/90">
+                      {prediction.confidence === 'alta' ? 'Sugerencia recomendada' : 'Popular hoy'}
+                    </span>
+                  </div>
+                  <h3 className="mt-1 text-lg font-black leading-tight sm:text-xl">
+                    ¿Lo de siempre? Te sugerimos: {prediction.productName}
+                  </h3>
+                  <p className="text-xs text-white/80">{prediction.reason}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  const prod = card
+                    .flatMap((c) => c.products)
+                    .find((p) => p.id === prediction.productId);
+                  if (prod) setSelectedProduct(prod);
+                }}
+                className="rounded-xl bg-white px-5 py-2.5 text-xs font-black text-orange-700 shadow-md hover:bg-orange-50 active:scale-95 transition-transform"
+              >
+                Pedir ahora · S/ {prediction.price}
+              </button>
+            </div>
           </div>
         )}
 

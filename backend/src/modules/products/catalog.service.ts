@@ -2,6 +2,7 @@ import { asc, eq, ilike, and, sql } from 'drizzle-orm';
 import { getDb } from '../../config/db';
 import { categories, products, productAddons } from '../../config/schema';
 import { NotFoundError, ConflictError } from '../../shared/errors';
+import { broadcastStockUpdate } from '../stock/stock.hub';
 
 // ─── Tipos ──────────────────────────────────────────────
 export type ProductWithAddons = typeof products.$inferSelect & {
@@ -78,6 +79,7 @@ export async function listCategoriesWithProducts(): Promise<CategoryWithProducts
         price: p.price,
         imageUrl: p.imageUrl,
         isAvailable: p.isAvailable,
+        stock: p.stock,
         preparationTime: p.preparationTime,
         addons: (addonsByProduct.get(p.id) ?? []).map((a) => ({
           id: a.id,
@@ -142,6 +144,7 @@ interface CreateProductInput {
   slug?: string;
   description?: string;
   price: string;
+  stock?: number;
   imageUrl?: string;
   preparationTime?: number;
   sortOrder?: number;
@@ -177,6 +180,8 @@ export async function createProduct(input: CreateProductInput) {
     throw new ConflictError('Ya existe un producto con ese slug');
   }
 
+  const initialStock = input.stock ?? 100;
+
   const [product] = await db
     .insert(products)
     .values({
@@ -185,6 +190,8 @@ export async function createProduct(input: CreateProductInput) {
       slug,
       description: input.description ?? null,
       price: input.price,
+      stock: initialStock,
+      isAvailable: initialStock > 0,
       imageUrl: input.imageUrl ?? null,
       preparationTime: input.preparationTime ?? null,
       sortOrder: input.sortOrder ?? 0,
@@ -214,20 +221,31 @@ export async function updateProduct(id: number, input: Partial<CreateProductInpu
     throw new NotFoundError('Producto no encontrado');
   }
 
+  const updates: Record<string, any> = {
+    updatedAt: sql`now()`,
+  };
+
+  if (input.name !== undefined) updates.name = input.name.trim();
+  if (input.description !== undefined) updates.description = input.description;
+  if (input.price !== undefined) updates.price = input.price;
+  if (input.imageUrl !== undefined) updates.imageUrl = input.imageUrl;
+  if (input.preparationTime !== undefined) updates.preparationTime = input.preparationTime;
+  if (input.sortOrder !== undefined) updates.sortOrder = input.sortOrder;
+  if (input.categoryId !== undefined) updates.categoryId = input.categoryId;
+  if (input.stock !== undefined) {
+    updates.stock = input.stock;
+    updates.isAvailable = input.stock > 0;
+  }
+
   const [updated] = await db
     .update(products)
-    .set({
-      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.price !== undefined ? { price: input.price } : {}),
-      ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
-      ...(input.preparationTime !== undefined ? { preparationTime: input.preparationTime } : {}),
-      ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-      ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
-      updatedAt: sql`now()`,
-    })
+    .set(updates)
     .where(eq(products.id, id))
     .returning();
+
+  if (input.stock !== undefined) {
+    broadcastStockUpdate([{ id: updated.id, stock: updated.stock, isAvailable: updated.isAvailable }]);
+  }
 
   return getProductBySlug(updated.slug);
 }

@@ -1,7 +1,9 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq } from 'drizzle-orm';
 import { env } from './env';
-import { categories, products, productAddons } from './schema';
+import { categories, products, productAddons, users } from './schema';
+import { hashPassword } from '../utils/password';
 
 const pool = new Pool({ connectionString: env.DATABASE_URL, max: 1 });
 const db = drizzle(pool);
@@ -176,6 +178,30 @@ async function seed() {
   }
 
   console.log('✅ Carta sembrada correctamente');
+
+  console.log('👤 Verificando usuarios iniciales (Staff & Demo)...');
+  const demoUsers = [
+    { name: 'Admin gorDOS', email: 'admin@gordos.pe', password: 'adminpassword123', role: 'admin' as const },
+    { name: 'Cocina Maestra', email: 'cocina@gordos.pe', password: 'cocinapassword123', role: 'kitchen' as const },
+    { name: 'Caja Principal', email: 'caja@gordos.pe', password: 'cajapassword123', role: 'cashier' as const },
+    { name: 'Cliente Frecuente', email: 'cliente@gordos.pe', password: 'clientepassword123', role: 'customer' as const },
+  ];
+
+  for (const u of demoUsers) {
+    const existing = await db.select().from(users).where(eq(users.email, u.email)).limit(1);
+    if (existing.length === 0) {
+      const passwordHash = await hashPassword(u.password);
+      await db.insert(users).values({
+        name: u.name,
+        email: u.email,
+        passwordHash,
+        role: u.role,
+        isActive: true,
+      });
+      console.log(`  🔑 Usuario creado: ${u.email} (${u.role}) - pass: ${u.password}`);
+    }
+  }
+
   await pool.end();
 }
 

@@ -30,7 +30,7 @@ export function useStockWebSocket(onStockUpdate?: (products: StockUpdatePayload[
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
     const wsUrl = API_URL.replace(/^http/, 'ws') + '/ws/stock';
 
     function connect() {

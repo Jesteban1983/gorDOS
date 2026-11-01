@@ -5,9 +5,18 @@ import {
   createOrder,
   getOrderById,
   listMyOrders,
+  listActiveKitchenOrders,
+  getOrderForTicket,
   updateOrderStatus,
   confirmStripePayment,
 } from './orders.service';
+import {
+  formatKitchenTicket,
+  formatCashierTicket,
+  buildEscPosBuffer,
+} from './escpos.service';
+import { broadcastPrintJob } from '../stock/stock.hub';
+import { env } from '../../config/env';
 import { authenticatePlugin, authOptionalHook, requireRole } from '../../plugins/auth';
 import { ValidationError, UnauthorizedError } from '../../shared/errors';
 
@@ -109,9 +118,109 @@ export const orderRoutes: FastifyPluginAsync = async (app) => {
 
   // ═══ COCINA / ADMIN ═══════════════════════════════════
 
+  const staffGuard = async (request: any) => {
+    // En desarrollo permitimos operar la pantalla de cocina sin token si no se envía
+    if (env.NODE_ENV === 'development' && !request.headers.authorization) {
+      request.userRole = 'kitchen';
+      return;
+    }
+    await app.authenticate(request);
+    await requireRole('admin', 'kitchen', 'cashier')(request);
+  };
+
+  // ─── GET /api/orders/kitchen/active ───────────────────
+  // Obtiene todos los pedidos activos para la pantalla de cocina (KDS)
+  app.get('/kitchen/active', {
+    preHandler: [staffGuard],
+    schema: {
+      tags: ['orders-kitchen'],
+      summary: 'Listar pedidos activos para cocina (pending, confirmed, preparing, ready)',
+    },
+  }, async () => {
+    return listActiveKitchenOrders();
+  });
+
+  // ─── GET /api/orders/:id/ticket ───────────────────────
+  // Genera ticket en texto plano y formato binario ESC/POS (Base64)
+  app.get('/:id/ticket', {
+    preHandler: [staffGuard],
+    schema: {
+      tags: ['orders-kitchen'],
+      summary: 'Obtener ticket comanda o caja (ESC/POS y texto plano)',
+      params: idParamSchema,
+      querystring: zodToJsonSchema(
+        z.object({ type: z.enum(['kitchen', 'cashier']).default('kitchen') }),
+      ),
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const orderId = Number(id);
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      throw new ValidationError('Id de pedido inválido');
+    }
+    const type = ((request.query as { type?: 'kitchen' | 'cashier' })?.type ?? 'kitchen') as
+      | 'kitchen'
+      | 'cashier';
+
+    const orderData = await getOrderForTicket(orderId);
+    const textTicket =
+      type === 'kitchen' ? formatKitchenTicket(orderData) : formatCashierTicket(orderData);
+    const escposBuffer = buildEscPosBuffer(orderData, type);
+
+    return {
+      orderId,
+      orderNumber: orderData.orderNumber,
+      type,
+      text: textTicket,
+      escposBase64: escposBuffer.toString('base64'),
+    };
+  });
+
+  // ─── POST /api/orders/:id/print ───────────────────────
+  // Dispara el comando de impresión a impresoras térmicas conectadas por WebSocket
+  app.post('/:id/print', {
+    preHandler: [staffGuard],
+    schema: {
+      tags: ['orders-kitchen'],
+      summary: 'Enviar orden de impresión a comanderas conectadas por WebSocket',
+      params: idParamSchema,
+      body: zodToJsonSchema(
+        z.object({ type: z.enum(['kitchen', 'cashier']).default('kitchen') }),
+      ),
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const orderId = Number(id);
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      throw new ValidationError('Id de pedido inválido');
+    }
+    const body = (request.body as { type?: 'kitchen' | 'cashier' }) ?? {};
+    const type = body.type ?? 'kitchen';
+
+    const orderData = await getOrderForTicket(orderId);
+    const textTicket =
+      type === 'kitchen' ? formatKitchenTicket(orderData) : formatCashierTicket(orderData);
+    const escposBuffer = buildEscPosBuffer(orderData, type);
+
+    broadcastPrintJob({
+      orderId,
+      orderNumber: orderData.orderNumber,
+      type,
+      text: textTicket,
+      escposBase64: escposBuffer.toString('base64'),
+    });
+
+    return {
+      success: true,
+      orderNumber: orderData.orderNumber,
+      type,
+      message: `Comanda de ${type} enviada a impresoras térmicas`,
+    };
+  });
+
   // ─── PATCH /api/orders/:id/status ─────────────────────
   app.patch('/:id/status', {
-    preHandler: [app.authenticate, requireRole('admin', 'kitchen', 'cashier')],
+    preHandler: [staffGuard],
     schema: {
       tags: ['orders-kitchen'],
       summary: 'Actualizar estado del pedido (cocina/admin)',

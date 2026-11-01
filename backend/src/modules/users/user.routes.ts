@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import * as authService from '../auth/auth.service';
+import { listCustomers } from '../admin/admin.service';
 import { authenticatePlugin, requireRole } from '../../plugins/auth';
 
 export const userRoutes: FastifyPluginAsync = async (app) => {
@@ -27,6 +28,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     preHandler: [app.authenticate, requireRole('admin')],
     schema: { tags: ['users'], summary: 'Listar usuarios (admin)' },
   }, async () => {
-    return { users: [] }; // Fase 7: panel admin
+    const usersList = await listCustomers();
+    return { users: usersList };
   });
 };

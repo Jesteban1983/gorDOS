@@ -74,12 +74,12 @@ main ─── dev ─── feat/[funcionalidad]
 - [x] **Criterio de éxito**: Si un producto se agota, desaparece de la carta en tiempo real.
 
 ### Fase 5: Cocina y caja — Comandas (Días 19-21)
-- [ ] 5.1 Panel de cocina: pedidos entrantes en tiempo real
-- [ ] 5.2 Impresión de comanda en cocina (WebSocket → ESC/POS)
-- [ ] 5.3 Impresión de comanda en caja (ticket resumen)
-- [ ] 5.4 Estados del pedido: pendiente → en cocina → listo → entregado
-- [ ] 5.5 Notificaciones al cliente del estado del pedido (web + WhatsApp)
-- [ ] **Criterio de éxito**: Un pedido nuevo aparece en cocina, se imprime, y al marcarlo listo el cliente recibe notificación.
+- [x] 5.1 Panel de cocina: pedidos entrantes en tiempo real
+- [x] 5.2 Impresión de comanda en cocina (WebSocket → ESC/POS)
+- [x] 5.3 Impresión de comanda en caja (ticket resumen)
+- [x] 5.4 Estados del pedido: pendiente → en cocina → listo → entregado
+- [x] 5.5 Notificaciones al cliente del estado del pedido (web + WhatsApp)
+- [x] **Criterio de éxito**: Un pedido nuevo aparece en cocina, se imprime, y al marcarlo listo el cliente recibe notificación.
 
 ### Fase 6: WhatsApp — Pedido por chat (Días 22-25)
 - [ ] 6.1 Integración con WhatsApp Cloud API
@@ -89,25 +89,25 @@ main ─── dev ─── feat/[funcionalidad]
 - [ ] **Criterio de éxito**: Cliente escribe a WhatsApp, recibe link, hace pedido, recibe confirmación.
 
 ### Fase 7: Panel de administración (Días 26-30)
-- [ ] 7.1 Dashboard con métricas: pedidos/día, ingresos, productos más vendidos
-- [ ] 7.2 Gestión de productos: alta, baja, modificación, precios
-- [ ] 7.3 Gestión de pedidos: ver, filtrar, cambiar estado
-- [ ] 7.4 Gestión de clientes: listado, historial
-- [ ] 7.5 Gestión de stock: ajuste manual, alertas
-- [ ] 7.6 Reportes exportables (PDF/CSV)
-- [ ] **Criterio de éxito**: Admin puede gestionar todo el restaurante desde el panel.
+- [x] 7.1 Dashboard con métricas: pedidos/día, ingresos, productos más vendidos
+- [x] 7.2 Gestión de productos: alta, baja, modificación, precios
+- [x] 7.3 Gestión de pedidos: ver, filtrar, cambiar estado
+- [x] 7.4 Gestión de clientes: listado, historial
+- [x] 7.5 Gestión de stock: ajuste manual, alertas
+- [x] 7.6 Reportes exportables (PDF/CSV)
+- [x] **Criterio de éxito**: Admin puede gestionar todo el restaurante desde el panel.
 
 ### Fase 8: Sistema Multiagente + RAG (Días 31-38) ⭐
-- [ ] 8.1 Diseñar arquitectura RAG + agentes
-- [ ] 8.2 AGENTS.md: definir agentes del sistema (Predictor, Recomendador, Analítico)
-- [ ] 8.3 SOUL.md: personalidad y tono del sistema
-- [ ] 8.4 TOOLS.md: herramientas de cada agente
-- [ ] 8.5 Sistema de memoria (interacciones, preferencias, historial)
-- [ ] 8.6 Motor de recomendaciones basado en histórico del cliente
-- [ ] 8.7 Predicción de pedido: "Este cliente probablemente pedirá X"
-- [ ] 8.8 Análisis de horarios: picos de demanda, productos por franja horaria
-- [ ] 8.9 (Opcional) Fine-tuning con datos de interacciones
-- [ ] **Criterio de éxito**: El sistema sugiere productos con acierto >60% basado en histórico.
+- [x] 8.1 Diseñar arquitectura RAG + agentes
+- [x] 8.2 AGENTS.md: definir agentes del sistema (Predictor, Recomendador, Analítico)
+- [x] 8.3 SOUL.md: personalidad y tono del sistema
+- [x] 8.4 TOOLS.md: herramientas de cada agente
+- [x] 8.5 Sistema de memoria (interacciones, preferencias, historial)
+- [x] 8.6 Motor de recomendaciones basado en histórico del cliente
+- [x] 8.7 Predicción de pedido: "Este cliente probablemente pedirá X"
+- [x] 8.8 Análisis de horarios: picos de demanda, productos por franja horaria
+- [x] 8.9 (Opcional) Fine-tuning con datos de interacciones
+- [x] **Criterio de éxito**: El sistema sugiere productos con acierto >60% basado en histórico.
 
 ### Fase 9: UX/UI y experiencia de cliente (Días 39-42)
 - [ ] 9.1 Diseño responsive mobile-first
